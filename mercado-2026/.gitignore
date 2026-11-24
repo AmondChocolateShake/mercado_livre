@@ -1,0 +1,34 @@
+# 빌드 결과물
+bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# 테스트
+*.test
+*.out
+coverage.*
+*.coverprofile
+
+# 부하 테스트 결과 (k6)
+loadtest/results/
+
+# 환경 변수 (.env.example은 커밋)
+.env
+.env.*
+!.env.example
+
+# Docker 로컬 볼륨 데이터
+deploy/data/
+
+# 로그
+*.log
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db

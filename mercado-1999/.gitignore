@@ -1,0 +1,29 @@
+# 빌드 결과물
+/bin/
+/api
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# 테스트
+*.test
+*.out
+coverage.*
+*.coverprofile
+
+# 환경 변수 (.env.example은 커밋)
+.env
+.env.*
+!.env.example
+
+# 로그
+*.log
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
