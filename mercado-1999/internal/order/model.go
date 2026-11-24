@@ -19,7 +19,9 @@ type Order struct {
 	TotalAmount int64     `json:"total_amount"`
 	CurrencyID  string    `json:"currency_id"`
 	Status      string    `json:"status"`
-	DateCreated time.Time `json:"date_created"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+	DeletedAt   *time.Time `json:"deleted_at"`
 }
 
 func (o Order) MarshalJSON() ([]byte, error) {
