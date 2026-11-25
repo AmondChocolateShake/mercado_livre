@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/shopspring/decimal"
 
 	"github.com/AmondChocolateShake/mercado_livre/mercado-1999/internal/config"
 	"github.com/AmondChocolateShake/mercado_livre/mercado-1999/internal/database"
@@ -13,6 +14,8 @@ import (
 )
 
 func main() {
+	decimal.MarshalJSONWithoutQuotes = true
+
 	cfg := config.Load()
 
 	if err := database.CreateIfNotExists(cfg.ServerDSN(), cfg.DBName); err != nil {

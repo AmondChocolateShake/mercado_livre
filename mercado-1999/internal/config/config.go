@@ -46,6 +46,8 @@ func (c Config) mysqlConfig(dbName string) *mysql.Config {
 	m.Addr = net.JoinHostPort(c.DBHost, c.DBPort)
 	m.DBName = dbName
 	m.ParseTime = true
+	m.ClientFoundRows = true
+	m.Params = map[string]string{"time_zone": "'+00:00'"}
 	return m
 }
 
