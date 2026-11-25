@@ -3,11 +3,29 @@ package item
 import (
 	"context"
 	"errors"
+	"strings"
+	"unicode/utf8"
+
+	"github.com/shopspring/decimal"
 )
 
+const maxTitleLength = 255
+
+var maxPrice = decimal.New(1, 13)
+
 var (
-	ErrNotFound  = errors.New("item not found")
-	ErrInvalidID = errors.New("invalid item id")
+	ErrNotFound          = errors.New("item not found")
+	ErrInvalidID         = errors.New("invalid item id")
+	ErrSellerNotFound    = errors.New("seller not found")
+	ErrInvalidTitle      = errors.New("title must be 1 to 255 characters")
+	ErrInvalidPrice      = errors.New("price must be greater than 0, below 10000000000000, with at most 2 decimal places")
+	ErrInvalidQuantity   = errors.New("available_quantity must be greater than 0")
+	ErrInvalidCondition  = errors.New("condition must be 'new' or 'used'")
+	ErrInvalidBuyingMode = errors.New("buying_mode must be 'auction' or 'buy_it_now'")
+	ErrAuctionQuantity   = errors.New("auction items must have available_quantity of 1")
+	ErrInvalidStatus     = errors.New("status can only be changed to 'active' or 'paused'")
+	ErrNoChanges         = errors.New("at least one field is required: title, price, available_quantity, status")
+	ErrItemClosed        = errors.New("closed items cannot be modified")
 
 	errNotImplemented = errors.New("not implemented")
 )
@@ -15,10 +33,17 @@ var (
 type CreateInput struct {
 	SellerID          int64
 	Title             string
-	Price             int64
+	Price             decimal.Decimal
 	AvailableQuantity int
 	Condition         string
 	BuyingMode        string
+}
+
+type UpdateInput struct {
+	Title             *string
+	Price             *decimal.Decimal
+	AvailableQuantity *int
+	Status            *string
 }
 
 type Service struct {
@@ -29,23 +54,124 @@ func NewService(repo *Repository) *Service {
 	return &Service{repo: repo}
 }
 
-// TODO: 상품 등록 규칙
-// 규칙마다 위 var 블록에 ErrXxx 에러 변수를 정의해서 반환하세요
-// 1. title 앞뒤 공백 제거 후 비어 있으면 에러
-// 2. price > 0
-// 3. available_quantity > 0
-// 4. condition은 ConditionNew / ConditionUsed만
-// 5. buying_mode는 BuyingModeAuction / BuyingModeBuyItNow만
-// 6. 경매 상품은 수량 1개만 (왜 그래야 할까?)
-// 7. Item 만들기: SiteID=DefaultSiteID, CurrencyID=DefaultCurrencyID, Status=StatusActive, DateCreated=현재 UTC 시각
-// 8. s.repo.Insert 호출
 func (s *Service) Create(ctx context.Context, in CreateInput) (*Item, error) {
-	return nil, errNotImplemented
+	title, err := validateTitle(in.Title)
+	if err != nil {
+		return nil, err
+	}
+	if err := validatePrice(in.Price); err != nil {
+		return nil, err
+	}
+	if in.AvailableQuantity <= 0 {
+		return nil, ErrInvalidQuantity
+	}
+	if in.Condition != ConditionNew && in.Condition != ConditionUsed {
+		return nil, ErrInvalidCondition
+	}
+	if in.BuyingMode != BuyingModeAuction && in.BuyingMode != BuyingModeBuyItNow {
+		return nil, ErrInvalidBuyingMode
+	}
+	if in.BuyingMode == BuyingModeAuction && in.AvailableQuantity != 1 {
+		return nil, ErrAuctionQuantity
+	}
+
+	it := &Item{
+		SiteID:            DefaultSiteID,
+		SellerID:          in.SellerID,
+		Title:             title,
+		Price:             in.Price,
+		CurrencyID:        DefaultCurrencyID,
+		AvailableQuantity: in.AvailableQuantity,
+		BuyingMode:        in.BuyingMode,
+		Condition:         in.Condition,
+		Status:            StatusActive,
+	}
+	if err := s.repo.Insert(ctx, it); err != nil {
+		return nil, err
+	}
+	return s.repo.FindByID(ctx, it.ID)
 }
 
-// TODO
-// 1. ParseID로 "MLA100000000" → 100000000
-// 2. s.repo.FindByID 호출
 func (s *Service) Get(ctx context.Context, publicID string) (*Item, error) {
-	return nil, errNotImplemented
+	id, err := ParseID(publicID)
+	if err != nil {
+		return nil, err
+	}
+	return s.repo.FindByID(ctx, id)
+}
+
+func (s *Service) Update(ctx context.Context, publicID string, in UpdateInput) (*Item, error) {
+	if in.Title == nil && in.Price == nil && in.AvailableQuantity == nil && in.Status == nil {
+		return nil, ErrNoChanges
+	}
+
+	id, err := ParseID(publicID)
+	if err != nil {
+		return nil, err
+	}
+
+	it, err := s.repo.FindByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if it.Status == StatusClosed {
+		return nil, ErrItemClosed
+	}
+
+	if in.Title != nil {
+		title, err := validateTitle(*in.Title)
+		if err != nil {
+			return nil, err
+		}
+		it.Title = title
+	}
+	if in.Price != nil {
+		if err := validatePrice(*in.Price); err != nil {
+			return nil, err
+		}
+		it.Price = *in.Price
+	}
+	if in.AvailableQuantity != nil {
+		if *in.AvailableQuantity <= 0 {
+			return nil, ErrInvalidQuantity
+		}
+		if it.BuyingMode == BuyingModeAuction && *in.AvailableQuantity != 1 {
+			return nil, ErrAuctionQuantity
+		}
+		it.AvailableQuantity = *in.AvailableQuantity
+	}
+	if in.Status != nil {
+		if *in.Status != StatusActive && *in.Status != StatusPaused {
+			return nil, ErrInvalidStatus
+		}
+		it.Status = *in.Status
+	}
+
+	if err := s.repo.Update(ctx, it); err != nil {
+		return nil, err
+	}
+	return s.repo.FindByID(ctx, id)
+}
+
+func (s *Service) Delete(ctx context.Context, publicID string) error {
+	id, err := ParseID(publicID)
+	if err != nil {
+		return err
+	}
+	return s.repo.SoftDelete(ctx, id)
+}
+
+func validateTitle(raw string) (string, error) {
+	title := strings.TrimSpace(raw)
+	if title == "" || utf8.RuneCountInString(title) > maxTitleLength {
+		return "", ErrInvalidTitle
+	}
+	return title, nil
+}
+
+func validatePrice(price decimal.Decimal) error {
+	if !price.IsPositive() || price.GreaterThanOrEqual(maxPrice) || !price.Equal(price.Round(2)) {
+		return ErrInvalidPrice
+	}
+	return nil
 }

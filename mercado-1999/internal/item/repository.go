@@ -3,9 +3,14 @@ package item
 import (
 	"context"
 	"database/sql"
+	"errors"
 
 	"github.com/AmondChocolateShake/mercado_livre/mercado-1999/internal/database"
 )
+
+const selectColumns = `id, site_id, seller_id, title, price, currency_id,
+	available_quantity, sold_quantity, buying_mode, item_condition, status,
+	created_at, updated_at, deleted_at`
 
 type Repository struct {
 	db database.DBTX
@@ -19,20 +24,72 @@ func (r *Repository) WithTx(tx *sql.Tx) *Repository {
 	return &Repository{db: tx}
 }
 
-// TODO
-// 1. r.db.ExecContext로 INSERT INTO items 실행 (값은 ? 플레이스홀더로)
-// 2. res.LastInsertId()로 받은 id를 it.ID에 채우기
-// 3. seller_id가 users에 없으면 외래 키 에러가 난다
-//    database.IsForeignKeyViolation(err)로 판별해서 판매자 없음 에러로 바꿔 반환
 func (r *Repository) Insert(ctx context.Context, it *Item) error {
-	return errNotImplemented
+	res, err := r.db.ExecContext(ctx,
+		`INSERT INTO items (site_id, seller_id, title, price, currency_id,
+			available_quantity, sold_quantity, buying_mode, item_condition, status)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		it.SiteID, it.SellerID, it.Title, it.Price, it.CurrencyID,
+		it.AvailableQuantity, it.SoldQuantity, it.BuyingMode, it.Condition, it.Status,
+	)
+	if err != nil {
+		if database.IsForeignKeyViolation(err) {
+			return ErrSellerNotFound
+		}
+		return err
+	}
+
+	id, err := res.LastInsertId()
+	if err != nil {
+		return err
+	}
+	it.ID = id
+	return nil
 }
 
-// TODO
-// 1. r.db.QueryRowContext(...).Scan(...)으로 한 행 읽기
-// 2. 행이 없으면 sql.ErrNoRows가 나온다 → ErrNotFound로 바꿔 반환
 func (r *Repository) FindByID(ctx context.Context, id int64) (*Item, error) {
-	return nil, errNotImplemented
+	var it Item
+	err := r.db.QueryRowContext(ctx,
+		`SELECT `+selectColumns+` FROM items WHERE id = ? AND deleted_at IS NULL`, id,
+	).Scan(
+		&it.ID, &it.SiteID, &it.SellerID, &it.Title, &it.Price, &it.CurrencyID,
+		&it.AvailableQuantity, &it.SoldQuantity, &it.BuyingMode, &it.Condition, &it.Status,
+		&it.CreatedAt, &it.UpdatedAt, &it.DeletedAt,
+	)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &it, nil
+}
+
+func (r *Repository) Update(ctx context.Context, it *Item) error {
+	res, err := r.db.ExecContext(ctx,
+		`UPDATE items
+		SET title = ?, price = ?, available_quantity = ?, status = ?
+		WHERE id = ? AND deleted_at IS NULL AND status <> ?`,
+		it.Title, it.Price, it.AvailableQuantity, it.Status,
+		it.ID, StatusClosed,
+	)
+	if err != nil {
+		return err
+	}
+	return expectOneRow(res, ErrItemClosed)
+}
+
+func (r *Repository) SoftDelete(ctx context.Context, id int64) error {
+	res, err := r.db.ExecContext(ctx,
+		`UPDATE items
+		SET deleted_at = UTC_TIMESTAMP(), status = ?
+		WHERE id = ? AND deleted_at IS NULL`,
+		StatusClosed, id,
+	)
+	if err != nil {
+		return err
+	}
+	return expectOneRow(res, ErrNotFound)
 }
 
 // TODO
@@ -46,4 +103,15 @@ func (r *Repository) FindByIDForUpdate(ctx context.Context, id int64) (*Item, er
 // available_quantity, sold_quantity, status를 UPDATE
 func (r *Repository) UpdateStock(ctx context.Context, id int64, available, sold int, status string) error {
 	return errNotImplemented
+}
+
+func expectOneRow(res sql.Result, errIfNone error) error {
+	n, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return errIfNone
+	}
+	return nil
 }

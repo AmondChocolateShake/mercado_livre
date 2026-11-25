@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/shopspring/decimal"
 )
 
 const (
@@ -23,20 +25,20 @@ const (
 )
 
 type Item struct {
-	ID                int64     `json:"-"`
-	SiteID            string    `json:"site_id"`
-	SellerID          int64     `json:"seller_id"`
-	Title             string    `json:"title"`
-	Price             int64     `json:"price"`
-	CurrencyID        string    `json:"currency_id"`
-	AvailableQuantity int       `json:"available_quantity"`
-	SoldQuantity      int       `json:"sold_quantity"`
-	BuyingMode        string    `json:"buying_mode"`
-	Condition         string    `json:"condition"`
-	Status            string    `json:"status"`
-	CreatedAt         time.Time `json:"created_at"`
-	UpdatedAt         time.Time `json:"updated_at"`
-	DeletedAt         *time.Time `json:"deleted_at"`
+	ID                int64           `json:"-"`
+	SiteID            string          `json:"site_id"`
+	SellerID          int64           `json:"seller_id"`
+	Title             string          `json:"title"`
+	Price             decimal.Decimal `json:"price"`
+	CurrencyID        string          `json:"currency_id"`
+	AvailableQuantity int             `json:"available_quantity"`
+	SoldQuantity      int             `json:"sold_quantity"`
+	BuyingMode        string          `json:"buying_mode"`
+	Condition         string          `json:"condition"`
+	Status            string          `json:"status"`
+	CreatedAt         time.Time       `json:"created_at"`
+	UpdatedAt         time.Time       `json:"updated_at"`
+	DeletedAt         *time.Time      `json:"deleted_at"`
 }
 
 func (i Item) PublicID() string {
