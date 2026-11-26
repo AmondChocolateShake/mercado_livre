@@ -11,6 +11,7 @@ import (
 	"github.com/AmondChocolateShake/mercado_livre/mercado-1999/internal/database"
 	"github.com/AmondChocolateShake/mercado_livre/mercado-1999/internal/item"
 	"github.com/AmondChocolateShake/mercado_livre/mercado-1999/internal/order"
+	"github.com/AmondChocolateShake/mercado_livre/mercado-1999/internal/web"
 )
 
 func main() {
@@ -48,6 +49,12 @@ func main() {
 
 	item.NewHandler(itemSvc).RegisterRoutes(r)
 	order.NewHandler(orderSvc).RegisterRoutes(r)
+
+	webHandler, err := web.NewHandler(itemSvc)
+	if err != nil {
+		log.Fatalf("load templates: %v", err)
+	}
+	webHandler.RegisterRoutes(r)
 
 	addr := ":" + cfg.Port
 	log.Println("server listening on", addr)

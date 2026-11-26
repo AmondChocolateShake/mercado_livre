@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/shopspring/decimal"
@@ -24,6 +25,29 @@ func (h *Handler) RegisterRoutes(r gin.IRouter) {
 	r.GET("/items/:id", h.get)
 	r.PUT("/items/:id", h.update)
 	r.DELETE("/items/:id", h.delete)
+	r.GET("/sites/:site_id/search", h.search)
+}
+
+func (h *Handler) search(c *gin.Context) {
+	siteID := c.Param("site_id")
+	if siteID != DefaultSiteID {
+		apierror.Respond(c, http.StatusNotFound, "not_found", errors.New("site not found"))
+		return
+	}
+
+	limit, _ := strconv.Atoi(c.Query("limit"))
+	keyword := c.Query("q")
+
+	items, err := h.svc.Search(c.Request.Context(), keyword, limit)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"site_id": siteID,
+		"query":   keyword,
+		"results": items,
+	})
 }
 
 type createRequest struct {

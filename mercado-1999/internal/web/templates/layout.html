@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{block "title" .}}MercadoLibre 1999{{end}}</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="page">
+  <header class="header">
+    <a class="logo" href="/">mercado<span>libre</span></a>
+    <form class="search" action="/" method="get">
+      <input type="text" name="q" value="{{.Query}}" placeholder="¿Qué estás buscando?" maxlength="100">
+      <button type="submit">Buscar</button>
+    </form>
+  </header>
+  <nav class="tabs">
+    <a href="/">Inicio</a>
+    <span>Comprar</span>
+    <span>Vender</span>
+    <span>Ayuda</span>
+  </nav>
+
+  <main class="content">
+    {{block "content" .}}{{end}}
+  </main>
+
+  <footer class="footer">
+    <hr>
+    Proyecto de portafolio: reinterpretación de un marketplace argentino de 1999.<br>
+    No está afiliado a Mercado Libre.
+  </footer>
+</div>
+</body>
+</html>

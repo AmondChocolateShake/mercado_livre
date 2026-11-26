@@ -1,0 +1,40 @@
+{{define "title"}}{{if .Query}}{{.Query}} - {{end}}MercadoLibre 1999{{end}}
+
+{{define "content"}}
+{{if .Query}}
+  <h2 class="section-title">Resultados para «{{.Query}}»</h2>
+  <p class="meta">{{len .Items}} publicaciones encontradas</p>
+{{else}}
+  <h2 class="section-title">Publicaciones recientes</h2>
+{{end}}
+
+{{if .Items}}
+<div class="table-wrap">
+<table class="items">
+  <thead>
+    <tr>
+      <th class="col-photo">Foto</th>
+      <th>Artículo</th>
+      <th class="col-price">Precio</th>
+      <th class="col-sold">Vendidos</th>
+    </tr>
+  </thead>
+  <tbody>
+    {{range .Items}}
+    <tr>
+      <td class="col-photo"><div class="photo">Sin foto</div></td>
+      <td>
+        <a class="item-link" href="/articulo/{{.PublicID}}">{{.Title}}</a><br>
+        <span class="meta">{{condition .Condition}} · {{buyingMode .BuyingMode}}</span>
+      </td>
+      <td class="col-price"><span class="price">{{price .Price}}</span></td>
+      <td class="col-sold">{{.SoldQuantity}}</td>
+    </tr>
+    {{end}}
+  </tbody>
+</table>
+</div>
+{{else}}
+  <p class="empty">No encontramos publicaciones.</p>
+{{end}}
+{{end}}

@@ -1,0 +1,37 @@
+{{define "title"}}{{.Item.Title}} - MercadoLibre 1999{{end}}
+
+{{define "content"}}
+{{with .Item}}
+<p class="breadcrumb"><a href="/">Inicio</a> &gt; Artículo {{.PublicID}}</p>
+
+<h1 class="item-title">{{.Title}}</h1>
+<p class="meta">{{condition .Condition}} · {{.SoldQuantity}} vendidos · Publicado el {{date .CreatedAt}}</p>
+
+<div class="item-box">
+  <div class="photo photo-large">Sin foto</div>
+
+  <div class="item-info">
+    <table class="details">
+      <tr>
+        <th>{{if isAuction .}}Precio inicial{{else}}Precio{{end}}</th>
+        <td><span class="price price-large">{{price .Price}}</span> <span class="meta">{{.CurrencyID}}</span></td>
+      </tr>
+      <tr><th>Tipo de venta</th><td>{{buyingMode .BuyingMode}}</td></tr>
+      <tr><th>Estado</th><td>{{condition .Condition}}</td></tr>
+      <tr><th>Cantidad disponible</th><td>{{.AvailableQuantity}}</td></tr>
+      <tr><th>Publicación</th><td>{{status .Status}}</td></tr>
+    </table>
+
+    {{if isActive .}}
+      <button type="button" class="buy" disabled>{{if isAuction .}}Ofertar{{else}}Comprar{{end}}</button>
+      <p class="meta">Próximamente disponible.</p>
+    {{else}}
+      <p class="notice">Esta publicación no está disponible para la compra.</p>
+    {{end}}
+  </div>
+</div>
+
+<h3 class="section-title">Datos del vendedor</h3>
+<p>Vendedor #{{.SellerID}}</p>
+{{end}}
+{{end}}

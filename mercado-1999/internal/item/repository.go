@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"strings"
 
 	"github.com/AmondChocolateShake/mercado_livre/mercado-1999/internal/database"
 )
@@ -51,11 +52,7 @@ func (r *Repository) FindByID(ctx context.Context, id int64) (*Item, error) {
 	var it Item
 	err := r.db.QueryRowContext(ctx,
 		`SELECT `+selectColumns+` FROM items WHERE id = ? AND deleted_at IS NULL`, id,
-	).Scan(
-		&it.ID, &it.SiteID, &it.SellerID, &it.Title, &it.Price, &it.CurrencyID,
-		&it.AvailableQuantity, &it.SoldQuantity, &it.BuyingMode, &it.Condition, &it.Status,
-		&it.CreatedAt, &it.UpdatedAt, &it.DeletedAt,
-	)
+	).Scan(scanTargets(&it)...)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
 	}
@@ -63,6 +60,33 @@ func (r *Repository) FindByID(ctx context.Context, id int64) (*Item, error) {
 		return nil, err
 	}
 	return &it, nil
+}
+
+func (r *Repository) ListActive(ctx context.Context, keyword string, limit int) ([]Item, error) {
+	query := `SELECT ` + selectColumns + ` FROM items WHERE deleted_at IS NULL AND status = ?`
+	args := []any{StatusActive}
+	if keyword != "" {
+		query += ` AND title LIKE ?`
+		args = append(args, "%"+likeEscaper.Replace(keyword)+"%")
+	}
+	query += ` ORDER BY id DESC LIMIT ?`
+	args = append(args, limit)
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	items := []Item{}
+	for rows.Next() {
+		var it Item
+		if err := rows.Scan(scanTargets(&it)...); err != nil {
+			return nil, err
+		}
+		items = append(items, it)
+	}
+	return items, rows.Err()
 }
 
 func (r *Repository) Update(ctx context.Context, it *Item) error {
@@ -103,6 +127,16 @@ func (r *Repository) FindByIDForUpdate(ctx context.Context, id int64) (*Item, er
 // available_quantity, sold_quantity, status를 UPDATE
 func (r *Repository) UpdateStock(ctx context.Context, id int64, available, sold int, status string) error {
 	return errNotImplemented
+}
+
+var likeEscaper = strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
+
+func scanTargets(it *Item) []any {
+	return []any{
+		&it.ID, &it.SiteID, &it.SellerID, &it.Title, &it.Price, &it.CurrencyID,
+		&it.AvailableQuantity, &it.SoldQuantity, &it.BuyingMode, &it.Condition, &it.Status,
+		&it.CreatedAt, &it.UpdatedAt, &it.DeletedAt,
+	}
 }
 
 func expectOneRow(res sql.Result, errIfNone error) error {

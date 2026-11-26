@@ -9,7 +9,10 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-const maxTitleLength = 255
+const (
+	maxTitleLength = 255
+	maxSearchLimit = 50
+)
 
 var maxPrice = decimal.New(1, 13)
 
@@ -98,6 +101,13 @@ func (s *Service) Get(ctx context.Context, publicID string) (*Item, error) {
 		return nil, err
 	}
 	return s.repo.FindByID(ctx, id)
+}
+
+func (s *Service) Search(ctx context.Context, keyword string, limit int) ([]Item, error) {
+	if limit <= 0 || limit > maxSearchLimit {
+		limit = maxSearchLimit
+	}
+	return s.repo.ListActive(ctx, strings.TrimSpace(keyword), limit)
 }
 
 func (s *Service) Update(ctx context.Context, publicID string, in UpdateInput) (*Item, error) {
